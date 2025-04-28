@@ -12,6 +12,8 @@
 
 use std::fmt::{self, Debug, Display, Formatter};
 
+use qiskit_circuit::interner::Interned;
+
 #[allow(dead_code)]
 pub enum Node<'a> {
     Program(&'a Program),
@@ -96,12 +98,12 @@ pub enum IdentifierOrSubscripted {
 
 #[derive(Debug, Clone)]
 pub struct Identifier {
-    pub string: String,
+    pub name: Interned<str>,
 }
 
 #[derive(Debug, Clone)]
 pub struct SubscriptedIdentifier {
-    pub string: String,
+    pub name: Interned<str>,
     pub subscript: Box<Expression>,
 }
 

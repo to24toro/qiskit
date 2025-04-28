@@ -28,6 +28,8 @@ use qiskit_circuit::bit::{
     ClassicalRegister, QuantumRegister, Register, ShareableClbit, ShareableQubit,
 };
 use qiskit_circuit::circuit_data::CircuitData;
+use qiskit_circuit::interner::Interned;
+use qiskit_circuit::interner::Interner;
 use qiskit_circuit::operations::{DelayUnit, StandardInstruction};
 use qiskit_circuit::operations::{Operation, Param};
 use qiskit_circuit::packed_instruction::PackedInstruction;
@@ -241,7 +243,7 @@ impl BuildScope {
 }
 
 struct SymbolTable {
-    symbols: Vec<HashMap<String, Identifier>>,
+    interners: Vec<Interner<str>>,
     bitinfo: Vec<HashMap<BitType, IdentifierOrSubscripted>>,
     reginfo: Vec<HashMap<RegisterType, IdentifierOrSubscripted>>,
     gates: HashMap<String, QuantumGateDefinition>,
@@ -251,11 +253,11 @@ struct SymbolTable {
 
 impl SymbolTable {
     fn new() -> Self {
-        let symbols = vec![HashMap::new()];
+        let interners = vec![Interner::new()];
         let bitinfo = vec![HashMap::new()];
         let reginfo = vec![HashMap::new()];
         Self {
-            symbols,
+            interners,
             bitinfo,
             reginfo,
             gates: HashMap::new(),
@@ -264,33 +266,39 @@ impl SymbolTable {
         }
     }
 
-    fn bind(&mut self, name: &str) -> ExporterResult<()> {
-        if let Some(symbols) = self.symbols.last() {
-            if !symbols.contains_key(name) {
-                self.bind_no_check(name);
+    fn get(&self, name: Interned<str>) -> &str {
+        let mut result = "";
+        for interner in self.interners.iter().rev() {
+            result = interner.get(name);
+        }
+        result
+    }
+
+    fn bind(&mut self, name: &str) -> ExporterResult<Interned<str>> {
+        if let Some(interner) = self.interners.last() {
+            if !interner.contains(name) {
+                return self.bind_no_check(name);
             }
+            Ok(interner.try_key(name).unwrap())
         } else {
             return Err(QASM3ExporterError::Error(format!(
                 "Symbol table is empty, cannot bind '{}'",
                 name
             )));
         }
-
-        Ok(())
     }
 
-    fn bind_no_check(&mut self, name: &str) {
-        let id = Identifier {
-            string: name.to_string(),
-        };
-        if let Some(last) = self.symbols.last_mut() {
-            last.insert(name.to_string(), id);
+    fn bind_no_check(&mut self, name: &str) -> ExporterResult<Interned<str>> {
+        if let Some(last) = self.interners.last_mut() {
+            Ok(last.insert(name))
+        } else {
+            Err(QASM3ExporterError::Error("No interner available to bind the name due to the symbol table is empty".to_string()))
         }
     }
 
     fn contains_name(&self, name: &str) -> bool {
-        if let Some(symbols) = self.symbols.last() {
-            symbols.contains_key(name)
+        if let Some(interner) = self.interners.last() {
+            interner.contains(name)
         } else {
             false
         }
@@ -300,14 +308,14 @@ impl SymbolTable {
         RESERVED_KEYWORDS.contains(name)
             || self.gates.contains_key(name)
             || self
-                .symbols
+                .interners
                 .iter()
                 .rev()
-                .any(|symbol| symbol.contains_key(name))
+                .any(|interner| interner.contains(name))
     }
 
     fn can_shadow_symbol(&self, name: &str) -> bool {
-        !self.symbols.last().unwrap().contains_key(name)
+        !self.interners.last().unwrap().contains(name)
             && !self.gates.contains_key(name)
             && !RESERVED_KEYWORDS.contains(name)
     }
@@ -354,11 +362,11 @@ impl SymbolTable {
                 )));
             }
 
-            for scope in self.symbols.iter().rev() {
-                if let Some(other) = scope.get(&name) {
+            for interner in self.interners.iter().rev() {
+                if interner.contains(&name) {
                     return Err(QASM3ExporterError::Error(format!(
-                        "cannot shadow variable '{}', as it is already defined as '{:?}'",
-                        name, other
+                        "cannot shadow variable '{}' as it is already defined",
+                        name
                     )));
                 }
             }
@@ -414,12 +422,12 @@ impl SymbolTable {
     ) -> ExporterResult<()> {
         // Changing the name is not allowed when defining new gates.
         let name = self.escaped_declarable_name(op_name.clone(), false, false)?;
-        let _ = self.bind(&name);
+        let interned_id = self.bind(&name)?;
         self.gates.insert(
             op_name,
             QuantumGateDefinition {
                 quantum_gate_signature: QuantumGateSignature {
-                    name: Identifier { string: name },
+                    name: Identifier { name: interned_id },
                     qarg_list: qubits,
                     params: Some(
                         params_def
@@ -455,10 +463,10 @@ impl SymbolTable {
         } else {
             self.escaped_declarable_name(name.clone(), allow_rename, false)?;
         }
+        let interned_id = self.bind(&name)?;
         let identifier = Identifier {
-            string: name.clone(),
+            name: interned_id,
         };
-        let _ = self.bind(&name);
         self.set_bitinfo(
             IdentifierOrSubscripted::Identifier(identifier.clone()),
             (*bit).to_owned(),
@@ -472,10 +480,10 @@ impl SymbolTable {
         register: &RegisterType,
     ) -> ExporterResult<Identifier> {
         let name = self.escaped_declarable_name(name.clone(), true, false)?;
+        let interned_id = self.bind(&name)?;
         let identifier = Identifier {
-            string: name.clone(),
+            name: interned_id,
         };
-        let _ = self.bind(&name);
         self.set_reginfo(
             IdentifierOrSubscripted::Identifier(identifier.clone()),
             (*register).to_owned(),
@@ -484,13 +492,13 @@ impl SymbolTable {
     }
 
     fn push_scope(&mut self) {
-        self.symbols.push(HashMap::new());
+        self.interners.push(Interner::new());
         self.bitinfo.push(HashMap::new());
         self.reginfo.push(HashMap::new());
     }
 
     fn pop_scope(&mut self) {
-        self.symbols.pop();
+        self.interners.pop();
         self.bitinfo.pop();
         self.reginfo.pop();
     }
@@ -540,7 +548,7 @@ impl Exporter {
         match builder.build_program() {
             Ok(program) => {
                 let mut output = String::new();
-                BasicPrinter::new(&mut output, self.indent.to_string(), false)
+                BasicPrinter::new(&mut output, &builder.symbol_table.interners, self.indent.to_string(), false)
                     .visit(&Node::Program(&program));
                 Ok(output)
             }
@@ -566,7 +574,7 @@ impl Exporter {
         match builder.build_program() {
             Ok(program) => {
                 let mut output = String::new();
-                let mut printer = BasicPrinter::new(&mut output, self.indent.to_string(), false);
+                let mut printer = BasicPrinter::new(&mut output, &builder.symbol_table.interners, self.indent.to_string(), false);
                 printer.visit(&Node::Program(&program));
                 drop(printer);
                 let _ = writer.write_all(output.as_bytes());
@@ -804,10 +812,10 @@ impl<'a> QASM3Builder {
                     },
                     Err(err) => return Err(QASM3ExporterError::PyErr(err)),
                 };
+                let interned_id = self.symbol_table.bind(&raw_name)?;
                 let identifier = Identifier {
-                    string: raw_name.clone(),
+                    name: interned_id,
                 };
-                let _ = self.symbol_table.bind(&raw_name);
                 self.global_io_decls.push(IODeclaration {
                     modifier: IOModifier::Input,
                     type_: ClassicalType::Float(Float::Double),
@@ -885,7 +893,7 @@ impl<'a> QASM3Builder {
             for (i, clbit) in creg.bits().enumerate() {
                 self.symbol_table.set_bitinfo(
                     IdentifierOrSubscripted::Subscripted(SubscriptedIdentifier {
-                        string: identifier.string.to_string(),
+                        name: identifier.name,
                         subscript: Box::new(Expression::IntegerLiteral(IntegerLiteral(i as i32))),
                     }),
                     BitType::ShareableClbit(clbit),
@@ -981,7 +989,7 @@ impl<'a> QASM3Builder {
             for (i, qubit) in qreg.bits().enumerate() {
                 self.symbol_table.set_bitinfo(
                     IdentifierOrSubscripted::Subscripted(SubscriptedIdentifier {
-                        string: identifier.string.to_string(),
+                        name: identifier.name,
                         subscript: Box::new(Expression::IntegerLiteral(IntegerLiteral(i as i32))),
                     }),
                     BitType::ShareableQubit(qubit),
@@ -1008,7 +1016,7 @@ impl<'a> QASM3Builder {
                 temp_id.clone()
             };
             let id2 = IdentifierOrSubscripted::Subscripted(SubscriptedIdentifier {
-                string: name.string.clone(),
+                name: name.name,
                 subscript: Box::new(Expression::IntegerLiteral(IntegerLiteral(i as i32))),
             });
             self.symbol_table.set_bitinfo(id2, bit.clone());
@@ -1319,9 +1327,10 @@ impl<'a> QASM3Builder {
             ))?;
             qubit_ids.push(id.to_owned());
         }
+        let interned_id = self.symbol_table.bind(op_name)?;
         Ok(GateCall {
             quantum_gate_name: Identifier {
-                string: op_name.to_string(),
+                name: interned_id,
             },
             index_identifier_list: qubit_ids,
             parameters: params,
@@ -1350,37 +1359,30 @@ impl<'a> QASM3Builder {
                 .collect()
         });
         if let Some(instruction) = operation.definition(&params) {
-            let params_def = params
-                .iter()
-                .enumerate()
-                .map(|(i, _p)| {
-                    let name = format!("{}_{}", self._gate_param_prefix, i);
-                    Identifier {
-                        string: name.clone(),
-                    }
-                })
-                .collect::<Vec<_>>();
-            let qubits = (0..instruction.num_qubits())
-                .map(|i| {
-                    let name = format!("{}_{}", self._gate_qubit_prefix, i);
-                    Identifier {
-                        string: name.clone(),
-                    }
-                })
-                .collect::<Vec<_>>();
-
+            let mut params_def = Vec::new();
+            let mut params_name = Vec::new();
+            for (i, p) in params.iter().enumerate() {
+                let name = format!("{}_{}", self._gate_param_prefix, i);
+                let interned_id = self.symbol_table.bind(&name)?;
+                params_name.push(name);
+                params_def.push(Identifier { name: interned_id });
+            }
+            let mut qubits = Vec::new();
+            for i in 0..instruction.num_qubits() {
+                let name = format!("{}_{}", self._gate_qubit_prefix, i);
+                let interned_id = self.symbol_table.bind(&name)?;
+                qubits.push(Identifier { name: interned_id });
+            }
             let body = self.new_context(&instruction, |builder| {
-                for param in &params_def {
-                    let _ = builder.symbol_table.bind(&param.string);
+                for name in params_name.iter() {
+                    let _ = builder.symbol_table.bind(&name);
                 }
                 for (i, q) in instruction.qubits().objects().iter().enumerate() {
                     let name = format!("{}_{}", builder._gate_qubit_prefix, i);
-                    let qid = Identifier {
-                        string: name.clone(),
-                    };
-                    let _ = builder.symbol_table.bind(&qid.string);
+                    let interned_id = builder.symbol_table.bind(&name).unwrap();
+                    let qid = qubits[i].clone();
                     builder.symbol_table.set_bitinfo(
-                        IdentifierOrSubscripted::Identifier(qid.clone()),
+                        IdentifierOrSubscripted::Identifier(qid),
                         BitType::ShareableQubit(q.to_owned()),
                     );
                 }

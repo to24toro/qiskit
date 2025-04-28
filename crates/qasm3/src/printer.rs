@@ -11,6 +11,7 @@
 // that they have been altered from the originals.
 
 use hashbrown::HashMap;
+use qiskit_circuit::interner::{Interned, Interner};
 
 use std::fmt::Write;
 
@@ -38,6 +39,7 @@ impl BindingPower {
 
 pub struct BasicPrinter<'a> {
     stream: &'a mut String,
+    interners: &'a Vec<Interner<str>>,
     indent: String,
     current_indent: usize,
     _chain_else_if: bool,
@@ -48,7 +50,7 @@ pub struct BasicPrinter<'a> {
 }
 
 impl<'a> BasicPrinter<'a> {
-    pub fn new(stream: &'a mut String, indent: String, _chain_else_if: bool) -> Self {
+    pub fn new(stream: &'a mut String, interners: &'a Vec<Interner<str>>, indent: String, _chain_else_if: bool) -> Self {
         let mut constant_lookup = HashMap::new();
         constant_lookup.insert(Constant::PI, "pi");
         constant_lookup.insert(Constant::Euler, "euler");
@@ -93,6 +95,7 @@ impl<'a> BasicPrinter<'a> {
 
         BasicPrinter {
             stream,
+            interners,
             indent,
             current_indent: 0,
             _chain_else_if,
@@ -101,6 +104,14 @@ impl<'a> BasicPrinter<'a> {
             float_width_lookup,
             binding_power,
         }
+    }
+
+    fn refer_interner(&self, name: Interned<str>) -> &str {
+        let mut result = "";
+        for interner in self.interners.iter().rev() {
+            result = interner.get(name);
+        }
+        result
     }
 
     pub fn visit(&mut self, node: &Node) {
@@ -213,11 +224,11 @@ impl<'a> BasicPrinter<'a> {
     }
 
     fn visit_identifier(&mut self, expression: &Identifier) {
-        write!(self.stream, "{}", expression.string).unwrap();
+        write!(self.stream, "{}", self.refer_interner(expression.name).to_string()).unwrap();
     }
 
     fn visit_subscript_identifier(&mut self, expression: &SubscriptedIdentifier) {
-        write!(self.stream, "{}", expression.string).unwrap();
+        write!(self.stream, "{}", self.refer_interner(expression.name).to_string()).unwrap();
         write!(self.stream, "[").unwrap();
         self.visit_expression(&expression.subscript);
         write!(self.stream, "]").unwrap();
