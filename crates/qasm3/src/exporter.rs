@@ -24,7 +24,7 @@ use crate::printer::BasicPrinter;
 use hashbrown::{HashMap, HashSet};
 use indexmap::IndexMap;
 use pyo3::prelude::*;
-use pyo3::Python;
+// use pyo3::Python;
 use qiskit_circuit::bit::{
     ClassicalRegister, QuantumRegister, Register, ShareableClbit, ShareableQubit,
 };
@@ -58,9 +58,40 @@ lazy_static! {
 // These are the gates that are defined by the standard library.
 lazy_static! {
     static ref GATES_DEFINED_BY_STDGATES: HashSet<&'static str> = [
-        "p", "x", "y", "z", "h", "s", "sdg", "t", "tdg", "sx", "rx", "ry", "rz", "cx", "cy", "cz",
-        "rzz", "cp", "crx", "cry", "crz", "ch", "swap", "ccx", "cswap", "cu", "CX", "phase",
-        "cphase", "id", "u1", "u2", "u3",
+        "p",
+        "x",
+        "y",
+        "z",
+        "h",
+        "s",
+        "sdg",
+        "t",
+        "tdg",
+        "sx",
+        "rx",
+        "ry",
+        "rz",
+        "cx",
+        "cy",
+        "cz",
+        "rzz",
+        "cp",
+        "crx",
+        "cry",
+        "crz",
+        "ch",
+        "swap",
+        "ccx",
+        "cswap",
+        "cu",
+        "CX",
+        "phase",
+        "cphase",
+        "id",
+        "u1",
+        "u2",
+        "u3",
+        "xx_plus_yy"
     ]
     .into_iter()
     .collect();
@@ -742,7 +773,7 @@ impl<'a> QASM3Builder {
         self.register_basis_gates();
         let header = self.build_header();
 
-        self.hoist_global_params()?;
+        // self.hoist_global_params()?;
         let classical_decls = self.hoist_classical_bits()?;
         let qubit_decls = self.build_qubit_decls()?;
         let main_stmts = self.build_top_level_stmts()?;
@@ -795,29 +826,29 @@ impl<'a> QASM3Builder {
         }
     }
 
-    fn hoist_global_params(&mut self) -> ExporterResult<()> {
-        Python::with_gil(|py| {
-            for param in self.circuit_scope.circuit_data.get_parameters(py) {
-                let raw_name: String = match param.getattr("name") {
-                    Ok(attr) => match attr.extract() {
-                        Ok(name) => name,
-                        Err(err) => return Err(QASM3ExporterError::PyErr(err)),
-                    },
-                    Err(err) => return Err(QASM3ExporterError::PyErr(err)),
-                };
-                let identifier = Identifier {
-                    string: raw_name.clone(),
-                };
-                let _ = self.symbol_table.bind(&raw_name);
-                self.global_io_decls.push(IODeclaration {
-                    modifier: IOModifier::Input,
-                    type_: ClassicalType::Float(Float::Double),
-                    identifier,
-                });
-            }
-            Ok(())
-        })
-    }
+    // fn hoist_global_params(&mut self) -> ExporterResult<()> {
+    //     Python::with_gil(|py| {
+    //         for param in self.circuit_scope.circuit_data.get_parameters(py) {
+    //             let raw_name: String = match param.getattr("name") {
+    //                 Ok(attr) => match attr.extract() {
+    //                     Ok(name) => name,
+    //                     Err(err) => return Err(QASM3ExporterError::PyErr(err)),
+    //                 },
+    //                 Err(err) => return Err(QASM3ExporterError::PyErr(err)),
+    //             };
+    //             let identifier = Identifier {
+    //                 string: raw_name.clone(),
+    //             };
+    //             let _ = self.symbol_table.bind(&raw_name);
+    //             self.global_io_decls.push(IODeclaration {
+    //                 modifier: IOModifier::Input,
+    //                 type_: ClassicalType::Float(Float::Double),
+    //                 identifier,
+    //             });
+    //         }
+    //         Ok(())
+    //     })
+    // }
 
     fn hoist_classical_bits(&mut self) -> ExporterResult<Vec<Statement>> {
         let clbit_indices = self.circuit_scope.circuit_data.clbit_indices();
@@ -1190,35 +1221,36 @@ impl<'a> QASM3Builder {
                 "Expected Delay instruction, but got wrong instruction".to_string(),
             ));
         };
-        let param = &instr.params_view()[0];
-        let duration: f64 = Python::with_gil(|py| match param {
-            Param::Float(val) => *val,
-            Param::ParameterExpression(p) => {
-                let py_obj = p.bind(py);
-                let py_str = py_obj.str().expect("Failed to call str() on Parameter");
-                let name = py_str
-                    .str()
-                    .expect("Failed to convert PyString to &str")
-                    .to_string();
-                match name.parse::<f64>() {
-                    Ok(val) => val,
-                    Err(_) => panic!("Failed to parse parameter value"),
-                }
-            }
-            Param::Obj(obj) => {
-                let py_obj = obj.bind(py);
-                let py_str = py_obj.str().expect("Failed to call str() on Parameter");
-                let name = py_str
-                    .str()
-                    .expect("Failed to convert PyString to &str")
-                    .to_string();
-                match name.parse::<f64>() {
-                    Ok(val) => val,
-                    Err(_) => panic!("Failed to parse parameter value"),
-                }
-            }
-        });
+        // let param = &instr.params_view()[0];
+        // let duration: f64 = Python::with_gil(|py| match param {
+        //     Param::Float(val) => *val,
+        //     Param::ParameterExpression(p) => {
+        //         let py_obj = p.bind(py);
+        //         let py_str = py_obj.str().expect("Failed to call str() on Parameter");
+        //         let name = py_str
+        //             .str()
+        //             .expect("Failed to convert PyString to &str")
+        //             .to_string();
+        //         match name.parse::<f64>() {
+        //             Ok(val) => val,
+        //             Err(_) => panic!("Failed to parse parameter value"),
+        //         }
+        //     }
+        //     Param::Obj(obj) => {
+        //         let py_obj = obj.bind(py);
+        //         let py_str = py_obj.str().expect("Failed to call str() on Parameter");
+        //         let name = py_str
+        //             .str()
+        //             .expect("Failed to convert PyString to &str")
+        //             .to_string();
+        //         match name.parse::<f64>() {
+        //             Ok(val) => val,
+        //             Err(_) => panic!("Failed to parse parameter value"),
+        //         }
+        //     }
+        // });
 
+        let duration: f64 = 1.0;
         let mut map = HashMap::new();
         map.insert(DelayUnit::NS, DurationUnit::Nanosecond);
         map.insert(DelayUnit::US, DurationUnit::Microsecond);
@@ -1271,36 +1303,49 @@ impl<'a> QASM3Builder {
         if op_name == "u" {
             op_name = "U";
         }
-        if !self.symbol_table.contains_name(op_name)
-            && !self.symbol_table.stdgates.contains(op_name)
-        {
-            self.define_gate(instr)?;
-        }
+        // if !self.symbol_table.contains_name(op_name)
+        //     && !self.symbol_table.stdgates.contains(op_name)
+        // {
+        //     self.define_gate(instr)?;
+        // }
         let params = if self.disable_constants {
-            Python::with_gil(|_py| {
-                instr
-                    .params_view()
-                    .iter()
-                    .map(|param| match param {
-                        Param::Float(val) => Expression::Parameter(Parameter {
-                            obj: val.to_string(),
-                        }),
-                        Param::ParameterExpression(p) => {
-                            let name = Python::with_gil(|py| {
-                                let py_obj = p.bind(py);
-                                let py_str =
-                                    py_obj.str().expect("Failed to call str() on Parameter");
-                                py_str
-                                    .str()
-                                    .expect("Failed to convert PyString to &str")
-                                    .to_string()
-                            });
-                            Expression::Parameter(Parameter { obj: name })
-                        }
-                        Param::Obj(_) => panic!("Objects not supported yet"),
-                    })
-                    .collect::<Vec<_>>()
-            })
+            instr
+                .params_view()
+                .iter()
+                .map(|param| match param {
+                    Param::Float(val) => Expression::Parameter(Parameter {
+                        obj: val.to_string(),
+                    }),
+                    Param::ParameterExpression(_) => {
+                        panic!("ParameterExpression not supported yet")
+                    }
+                    Param::Obj(_) => panic!("Objects not supported yet"),
+                })
+                .collect::<Vec<_>>()
+            // Python::with_gil(|_py| {
+            //     instr
+            //         .params_view()
+            //         .iter()
+            //         .map(|param| match param {
+            //             Param::Float(val) => Expression::Parameter(Parameter {
+            //                 obj: val.to_string(),
+            //             }),
+            //             Param::ParameterExpression(p) => {
+            //                 let name = Python::with_gil(|py| {
+            //                     let py_obj = p.bind(py);
+            //                     let py_str =
+            //                         py_obj.str().expect("Failed to call str() on Parameter");
+            //                     py_str
+            //                         .str()
+            //                         .expect("Failed to convert PyString to &str")
+            //                         .to_string()
+            //                 });
+            //                 Expression::Parameter(Parameter { obj: name })
+            //             }
+            //             Param::Obj(_) => panic!("Objects not supported yet"),
+            //         })
+            //         .collect::<Vec<_>>()
+            // })
         } else {
             return Err(QASM3ExporterError::Error(
                 "Constant parameters not supported yet".to_string(),
@@ -1330,83 +1375,83 @@ impl<'a> QASM3Builder {
         })
     }
 
-    #[allow(dead_code)]
-    fn define_gate(&mut self, instr: &PackedInstruction) -> ExporterResult<()> {
-        let operation = &instr.op;
-        let params: Vec<Param> = Python::with_gil(|py| {
-            let qiskit_circuit =
-                PyModule::import(py, "qiskit.circuit").expect("Failed to import qiskit.circuit");
-            let parameter_class = qiskit_circuit
-                .getattr("Parameter")
-                .expect("No Parameter class in qiskit.circuit");
+    // #[allow(dead_code)]
+    // fn define_gate(&mut self, instr: &PackedInstruction) -> ExporterResult<()> {
+    //     let operation = &instr.op;
+    //     let params: Vec<Param> = Python::with_gil(|py| {
+    //         let qiskit_circuit =
+    //             PyModule::import(py, "qiskit.circuit").expect("Failed to import qiskit.circuit");
+    //         let parameter_class = qiskit_circuit
+    //             .getattr("Parameter")
+    //             .expect("No Parameter class in qiskit.circuit");
 
-            (0..instr.params_view().len())
-                .map(|i| {
-                    let name = format!("{}_{}", self._gate_param_prefix, i);
-                    let py_param = parameter_class
-                        .call1((name,))
-                        .expect("Failed to create Parameter");
-                    Param::ParameterExpression(py_param.into())
-                })
-                .collect()
-        });
-        if let Some(instruction) = operation.definition(&params) {
-            let params_def = params
-                .iter()
-                .enumerate()
-                .map(|(i, _p)| {
-                    let name = format!("{}_{}", self._gate_param_prefix, i);
-                    Identifier {
-                        string: name.clone(),
-                    }
-                })
-                .collect::<Vec<_>>();
-            let qubits = (0..instruction.num_qubits())
-                .map(|i| {
-                    let name = format!("{}_{}", self._gate_qubit_prefix, i);
-                    Identifier {
-                        string: name.clone(),
-                    }
-                })
-                .collect::<Vec<_>>();
+    //         (0..instr.params_view().len())
+    //             .map(|i| {
+    //                 let name = format!("{}_{}", self._gate_param_prefix, i);
+    //                 let py_param = parameter_class
+    //                     .call1((name,))
+    //                     .expect("Failed to create Parameter");
+    //                 Param::ParameterExpression(py_param.into())
+    //             })
+    //             .collect()
+    //     });
+    //     if let Some(instruction) = operation.definition(&params) {
+    //         let params_def = params
+    //             .iter()
+    //             .enumerate()
+    //             .map(|(i, _p)| {
+    //                 let name = format!("{}_{}", self._gate_param_prefix, i);
+    //                 Identifier {
+    //                     string: name.clone(),
+    //                 }
+    //             })
+    //             .collect::<Vec<_>>();
+    //         let qubits = (0..instruction.num_qubits())
+    //             .map(|i| {
+    //                 let name = format!("{}_{}", self._gate_qubit_prefix, i);
+    //                 Identifier {
+    //                     string: name.clone(),
+    //                 }
+    //             })
+    //             .collect::<Vec<_>>();
 
-            let body = self.new_context(&instruction, |builder| {
-                for param in &params_def {
-                    let _ = builder.symbol_table.bind(&param.string);
-                }
-                for (i, q) in instruction.qubits().objects().iter().enumerate() {
-                    let name = format!("{}_{}", builder._gate_qubit_prefix, i);
-                    let qid = Identifier {
-                        string: name.clone(),
-                    };
-                    let _ = builder.symbol_table.bind(&qid.string);
-                    builder.symbol_table.set_bitinfo(
-                        IdentifierOrSubscripted::Identifier(qid.clone()),
-                        BitType::ShareableQubit(q.to_owned()),
-                    );
-                }
+    //         let body = self.new_context(&instruction, |builder| {
+    //             for param in &params_def {
+    //                 let _ = builder.symbol_table.bind(&param.string);
+    //             }
+    //             for (i, q) in instruction.qubits().objects().iter().enumerate() {
+    //                 let name = format!("{}_{}", builder._gate_qubit_prefix, i);
+    //                 let qid = Identifier {
+    //                     string: name.clone(),
+    //                 };
+    //                 let _ = builder.symbol_table.bind(&qid.string);
+    //                 builder.symbol_table.set_bitinfo(
+    //                     IdentifierOrSubscripted::Identifier(qid.clone()),
+    //                     BitType::ShareableQubit(q.to_owned()),
+    //                 );
+    //             }
 
-                let mut stmts_tmp = Vec::new();
-                for instr in instruction.data() {
-                    let _ = builder.build_instruction(instr, &mut stmts_tmp);
-                }
-                QuantumBlock {
-                    statements: stmts_tmp,
-                }
-            })?;
+    //             let mut stmts_tmp = Vec::new();
+    //             for instr in instruction.data() {
+    //                 let _ = builder.build_instruction(instr, &mut stmts_tmp);
+    //             }
+    //             QuantumBlock {
+    //                 statements: stmts_tmp,
+    //             }
+    //         })?;
 
-            let _ = self.symbol_table.register_gate(
-                operation.name().to_string(),
-                params_def,
-                qubits,
-                body,
-            );
-            Ok(())
-        } else {
-            Err(QASM3ExporterError::Error(format!(
-                "Failed to get definition for this gate: {}",
-                operation.name()
-            )))
-        }
-    }
+    //         let _ = self.symbol_table.register_gate(
+    //             operation.name().to_string(),
+    //             params_def,
+    //             qubits,
+    //             body,
+    //         );
+    //         Ok(())
+    //     } else {
+    //         Err(QASM3ExporterError::Error(format!(
+    //             "Failed to get definition for this gate: {}",
+    //             operation.name()
+    //         )))
+    //     }
+    // }
 }

@@ -14,7 +14,7 @@ mod ast;
 mod build;
 mod circuit;
 mod error;
-mod exporter;
+pub mod exporter;
 mod expr;
 mod printer;
 

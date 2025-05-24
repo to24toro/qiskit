@@ -157,6 +157,32 @@ impl<'a> BasicPrinter<'a> {
 
     fn visit_include(&mut self, node: &Include) {
         self.write_statement(&format!("include \"{}\"", node.filename));
+        self.write_statement(
+            "gate sxdg _gate_q_0 {\n\
+             s _gate_q_0;\n\
+             h _gate_q_0;\n\
+             s _gate_q_0;\n\
+            }",
+        );
+
+        self.write_statement(
+            "gate xx_plus_yy(p0, p1) _gate_q_0, _gate_q_1 {\n\
+             rz(p1) _gate_q_0;\n\
+             rz(-1.5707963267948966) _gate_q_1;\n\
+             sx _gate_q_1;\n\
+             rz(1.5707963267948966) _gate_q_1;\n\
+             s _gate_q_0;\n\
+             cx _gate_q_1, _gate_q_0;\n\
+             ry(-p0/2) _gate_q_1;\n\
+             ry(-p0/2) _gate_q_0;\n\
+             cx _gate_q_1, _gate_q_0;\n\
+             sdg _gate_q_0;\n\
+             rz(-1.5707963267948966) _gate_q_1;\n\
+             sxdg _gate_q_1;\n\
+             rz(1.5707963267948966) _gate_q_1;\n\
+             rz(-p1) _gate_q_0;\n\
+            }",
+        );
     }
 
     fn visit_version(&mut self, node: &Version) {
