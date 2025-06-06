@@ -17,3 +17,4 @@ pub mod exit_codes;
 pub mod sparse_observable;
 
 pub mod qasm3;
+pub mod transpiler;

@@ -4,32 +4,28 @@ include_guard = "QISKIT_H"
 style = "type"
 cpp_compat = true
 
-sys_includes = ["complex.h"]
 after_includes = """
 #ifdef QISKIT_C_PYTHON_INTERFACE
     #include <Python.h>
 #endif
 
-// Complex number typedefs -- note these are memory aligned but
-// not calling convention compatible.
-#ifdef __cplusplus
-typedef std::complex<float> QkComplex32;
-typedef std::complex<double> QkComplex64;
-#else  //__cplusplus
+#include "qiskit/complex.h"
 
-#ifdef _MSC_VER
-typedef _Fcomplex QkComplex32;
-typedef _Dcomplex QkComplex64;
-#else
-typedef float complex QkComplex32;
-typedef double complex QkComplex64;
-#endif
+#define QISKIT_VERSION_MAJOR 2
+#define QISKIT_VERSION_MINOR 1
+#define QISKIT_VERSION_PATCH 0
+
+#define QISKIT_VERSION_NUMERIC(M,m,p) ((M)<<16|(m)<<8|(p))
+#define QISKIT_VERSION (QISKIT_VERSION_MAJOR<<16 | QISKIT_VERSION_MINOR<<8 | QISKIT_VERSION_PATCH)
 
 #endif  //__cplusplus
 
 // Always expose [cfg(feature = "cbinding")] -- workaround for
 // https://github.com/mozilla/cbindgen/issues/995
 #define QISKIT_WITH_CBINDINGS
+
+typedef struct QkQuantumRegister QkQuantumRegister;
+typedef struct QkClassicalRegister QkClassicalRegister;
 """
 
 [defines]
@@ -38,7 +34,7 @@ typedef double complex QkComplex64;
 
 [parse]
 parse_deps = true
-include = ["qiskit-accelerate", "qiskit-circuit", "qiskit-qasm3"]
+include = ["qiskit-quantum-info", "qiskit-circuit", "qiskit-transpiler", "qiskit-qasm3","qiskit-accelerate"]
 
 [enum]
 prefix_with_name = true
@@ -55,3 +51,7 @@ prefix_with_name = true
 "CInstruction" = "QkCircuitInstruction"
 "ExitCode" = "QkExitCode"
 "Exporter" = "QkExporter"
+"QuantumRegister" = "QkQuantumRegister"
+"ClassicalRegister" = "QkClassicalRegister"
+"Target" = "QkTarget"
+"TargetEntry" = "QkTargetEntry"
