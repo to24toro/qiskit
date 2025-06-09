@@ -157,16 +157,14 @@ impl<'a> BasicPrinter<'a> {
 
     fn visit_include(&mut self, node: &Include) {
         self.write_statement(&format!("include \"{}\"", node.filename));
-        self.write_statement(
-            "gate sxdg _gate_q_0 {\n\
+        self.start_line();
+        write!(self.stream, "{}", "gate sxdg _gate_q_0 {\n\
              s _gate_q_0;\n\
              h _gate_q_0;\n\
              s _gate_q_0;\n\
-            }",
-        );
-
-        self.write_statement(
-            "gate xx_plus_yy(p0, p1) _gate_q_0, _gate_q_1 {\n\
+            }").unwrap();
+        writeln!(self.stream, "").unwrap();
+        write!(self.stream, "{}", "gate xx_plus_yy(p0, p1) _gate_q_0, _gate_q_1 {\n\
              rz(p1) _gate_q_0;\n\
              rz(-1.5707963267948966) _gate_q_1;\n\
              sx _gate_q_1;\n\
@@ -181,8 +179,9 @@ impl<'a> BasicPrinter<'a> {
              sxdg _gate_q_1;\n\
              rz(1.5707963267948966) _gate_q_1;\n\
              rz(-p1) _gate_q_0;\n\
-            }",
-        );
+            }").unwrap();
+        writeln!(self.stream, "").unwrap();
+        
     }
 
     fn visit_version(&mut self, node: &Version) {
