@@ -1,17 +1,13 @@
 use std::ffi::{CStr, CString};
-use std::os::raw::{c_char, c_int};
+use std::os::raw::c_char;
 
-use pyo3;
 use qiskit_circuit::circuit_data::CircuitData;
 use qiskit_qasm3::exporter::Exporter;
 
+/// # Safety
+/// Call Rust from C. Be careful for handling the pointer.
 #[no_mangle]
-pub extern "C" fn qk_init_python() {
-    pyo3::prepare_freethreaded_python();
-}
-
-#[no_mangle]
-pub extern "C" fn exporter_new(
+pub unsafe extern "C" fn exporter_new(
     includes: *const *const c_char,
     includes_len: usize,
     basis: *const *const c_char,
@@ -46,8 +42,10 @@ pub extern "C" fn exporter_new(
     }
 }
 
+/// # Safety
+/// Call Rust from C. Be careful for handling the pointer.
 #[no_mangle]
-pub extern "C" fn exporter_free(ptr: *mut Exporter) {
+pub unsafe extern "C" fn exporter_free(ptr: *mut Exporter) {
     if !ptr.is_null() {
         unsafe {
             drop(Box::from_raw(ptr));
@@ -55,8 +53,10 @@ pub extern "C" fn exporter_free(ptr: *mut Exporter) {
     }
 }
 
+/// # Safety
+/// Call Rust from C. Be careful for handling the pointer.
 #[no_mangle]
-pub extern "C" fn exporter_dumps(
+pub unsafe extern "C" fn exporter_dumps(
     exporter: *const Exporter,
     circuit: *const CircuitData,
     islayout: bool,
@@ -70,8 +70,10 @@ pub extern "C" fn exporter_dumps(
     }
 }
 
+/// # Safety
+/// Call Rust from C. Be careful for handling the pointer.
 #[no_mangle]
-pub extern "C" fn exporter_free_string(s: *mut c_char) {
+pub unsafe extern "C" fn exporter_free_string(s: *mut c_char) {
     if !s.is_null() {
         unsafe {
             drop(CString::from_raw(s));

@@ -12,11 +12,11 @@
 
 use crate::ast::{
     Alias, Barrier, BitArray, Break, ClassicalDeclaration, ClassicalType, Continue, Delay,
-    Designator, DurationLiteral, DurationUnit, Expression, Float, GateCall, Header, IODeclaration,
-    IOModifier, Identifier, IdentifierOrSubscripted, Include, IndexSet, IntegerLiteral, Node,
-    Parameter, Program, QuantumBlock, QuantumDeclaration, QuantumGateDefinition,
-    QuantumGateSignature, QuantumInstruction, QuantumMeasurement, QuantumMeasurementAssignment,
-    Reset, Statement, SubscriptedIdentifier, Version,
+    Designator, DurationLiteral, DurationUnit, Expression, GateCall, Header, IODeclaration,
+    Identifier, IdentifierOrSubscripted, Include, IndexSet, IntegerLiteral, Node, Parameter,
+    Program, QuantumBlock, QuantumDeclaration, QuantumGateDefinition, QuantumGateSignature,
+    QuantumInstruction, QuantumMeasurement, QuantumMeasurementAssignment, Reset, Statement,
+    SubscriptedIdentifier, Version,
 };
 use std::io::Write;
 
@@ -320,6 +320,7 @@ impl SymbolTable {
         }
     }
 
+    #[allow(dead_code)]
     fn contains_name(&self, name: &str) -> bool {
         if let Some(symbols) = self.symbols.last() {
             symbols.contains_key(name)
@@ -437,6 +438,7 @@ impl SymbolTable {
         }
     }
 
+    #[allow(dead_code)]
     fn register_gate(
         &mut self,
         op_name: String,
@@ -725,6 +727,7 @@ impl<'a> QASM3Builder {
         result
     }
 
+    #[allow(dead_code)]
     fn new_context<F>(&mut self, body: &'a CircuitData, f: F) -> ExporterResult<QuantumBlock>
     where
         F: FnOnce(&mut QASM3Builder) -> QuantumBlock,
